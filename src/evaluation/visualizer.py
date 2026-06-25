@@ -513,6 +513,122 @@ class Visualizer:
         plt.tight_layout()
         return self._save(fig, 'grasp_comparison')
     
+    def plot_feature_importance(
+        self,
+        importance: Dict[str, float],
+        model_name: str = 'Model',
+    ) -> str:
+        """
+        Plot permutation feature importance as a horizontal bar chart.
+        
+        Args:
+            importance: Dict of {feature_name: importance_score}.
+            model_name: Name of the model for the title.
+        
+        Returns:
+            Path to saved plot.
+        """
+        # Sort by importance
+        sorted_items = sorted(importance.items(), key=lambda x: x[1], reverse=True)
+        names = [item[0] for item in sorted_items[:15]]  # Top 15
+        scores = [item[1] for item in sorted_items[:15]]
+        
+        fig, ax = plt.subplots(figsize=(10, 8))
+        
+        colors = plt.cm.viridis(np.linspace(0.3, 0.9, len(names)))
+        bars = ax.barh(range(len(names)), scores, color=colors)
+        
+        ax.set_yticks(range(len(names)))
+        ax.set_yticklabels(names, fontsize=10)
+        ax.invert_yaxis()
+        ax.set_xlabel('Importance (%)', fontsize=12)
+        ax.set_title(f'Feature Importance — {model_name}\n(Permutation-based, higher = more important)',
+                     fontsize=14, fontweight='bold')
+        
+        # Add value labels
+        for bar, score in zip(bars, scores):
+            ax.text(bar.get_width() + 0.3, bar.get_y() + bar.get_height()/2,
+                    f'{score:.1f}%', va='center', fontsize=9)
+        
+        ax.set_facecolor('#1a1a2e')
+        fig.patch.set_facecolor('#0d1117')
+        ax.tick_params(colors='white')
+        ax.xaxis.label.set_color('white')
+        ax.yaxis.label.set_color('white')
+        ax.title.set_color('white')
+        for spine in ax.spines.values():
+            spine.set_color('#333')
+        
+        plt.tight_layout()
+        return self._save(fig, f'feature_importance_{model_name.lower()}')
+    
+    def plot_uncertainty_bands(
+        self,
+        timestamps: np.ndarray,
+        y_true: np.ndarray,
+        y_pred: np.ndarray,
+        p5: np.ndarray,
+        p95: np.ndarray,
+        horizon_labels: List[str],
+        model_name: str = 'Model',
+    ) -> str:
+        """
+        Plot predictions with 90% confidence interval from MC Dropout.
+        
+        Args:
+            timestamps: Array of datetime timestamps.
+            y_true: Observed values (N, num_horizons).
+            y_pred: Predicted values (N, num_horizons).
+            p5: 5th percentile predictions (N, num_horizons).
+            p95: 95th percentile predictions (N, num_horizons).
+            horizon_labels: Label for each horizon.
+            model_name: Name of the model for the title.
+        
+        Returns:
+            Path to saved plot.
+        """
+        n_horizons = min(y_true.shape[1], len(horizon_labels))
+        fig, axes = plt.subplots(n_horizons, 1, figsize=(16, 4 * n_horizons), sharex=True)
+        if n_horizons == 1:
+            axes = [axes]
+        
+        # Show a representative subset (last 2000 points)
+        n_show = min(2000, len(timestamps))
+        sl = slice(-n_show, None)
+        t = timestamps[sl]
+        
+        for i, (ax, label) in enumerate(zip(axes, horizon_labels)):
+            if i >= y_true.shape[1]:
+                break
+            
+            true_vals = y_true[sl, i]
+            pred_vals = y_pred[sl, i]
+            lower = p5[sl, i]
+            upper = p95[sl, i]
+            
+            ax.fill_between(t[:len(lower)], lower, upper,
+                          alpha=0.25, color='#667eea', label='90% CI (MC Dropout)')
+            ax.plot(t[:len(true_vals)], true_vals, color=COLORS['observed'],
+                   linewidth=0.8, label='Observed', alpha=0.8)
+            ax.plot(t[:len(pred_vals)], pred_vals, color=COLORS['predicted'],
+                   linewidth=0.8, label='Predicted', alpha=0.8)
+            
+            ax.set_ylabel(f'log₁₀(Flux) — {label}', fontsize=11)
+            ax.legend(loc='upper right', fontsize=9)
+            ax.grid(True, alpha=0.3)
+            
+            ax.set_facecolor('#1a1a2e')
+            ax.tick_params(colors='white')
+            ax.yaxis.label.set_color('white')
+            for spine in ax.spines.values():
+                spine.set_color('#333')
+        
+        fig.suptitle(f'{model_name} — Predictions with 90% Uncertainty Bounds',
+                    fontsize=14, fontweight='bold', color='white')
+        fig.patch.set_facecolor('#0d1117')
+        plt.tight_layout()
+        return self._save(fig, f'uncertainty_{model_name.lower()}')
+    
     def create_all_eda_plots(self, df: pd.DataFrame) -> List[str]:
         """Generate all exploratory data analysis plots."""
         plots = []
@@ -525,3 +641,4 @@ class Visualizer:
         
         logger.info(f"Generated {len(plots)} EDA plots")
         return plots
+

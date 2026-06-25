@@ -335,21 +335,21 @@ class DataDownloader:
     def print_grasp_instructions():
         """Print instructions for manual GRASP data download."""
         instructions = """
-╔══════════════════════════════════════════════════════════════════╗
-║           GRASP/GSAT-19 Data Download Instructions              ║
-╠══════════════════════════════════════════════════════════════════╣
-║                                                                  ║
-║  1. Visit: https://pradan.issdc.gov.in                          ║
-║  2. Register / Log in to the portal                              ║
-║  3. Navigate to GSAT-19 → GRASP payload                         ║
-║  4. Select time range: 2017-06 to 2019-06 (or available)        ║
-║  5. Download electron flux data (CDF or CSV format)              ║
-║  6. Place files in: data/raw/grasp/                             ║
-║                                                                  ║
-║  Alternative: https://www.issdc.gov.in → ISDA → GSAT-19         ║
-║                                                                  ║
-║  The pipeline will auto-detect GRASP files in data/raw/grasp/   ║
-╚══════════════════════════════════════════════════════════════════╝
+==================================================================
+           GRASP/GSAT-19 Data Download Instructions              
+==================================================================
+                                                                  
+  1. Visit: https://pradan.issdc.gov.in                          
+  2. Register / Log in to the portal                              
+  3. Navigate to GSAT-19 -> GRASP payload                         
+  4. Select time range: 2017-06 to 2019-06 (or available)        
+  5. Download electron flux data (CDF or CSV format)              
+  6. Place files in: data/raw/grasp/                             
+                                                                  
+  Alternative: https://www.issdc.gov.in -> ISDA -> GSAT-19         
+                                                                  
+  The pipeline will auto-detect GRASP files in data/raw/grasp/   
+==================================================================
         """
         print(instructions)
     

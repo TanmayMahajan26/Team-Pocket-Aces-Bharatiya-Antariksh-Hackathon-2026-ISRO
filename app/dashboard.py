@@ -565,6 +565,63 @@ def page_about():
     """)
 
 
+def page_live_operations():
+    """Render the real-time operational dashboard."""
+    st.header("📡 Real-Time Space Weather Operations")
+    st.write("Live inference engine monitoring >2 MeV electron fluxes at geostationary orbit using NOAA SWPC data streams.")
+    
+    # Auto-refresh check
+    st.markdown("*(To enable auto-refresh, you can run the dashboard with `streamlit-autorefresh` installed, though this page loads the latest state upon manual refresh)*")
+    
+    state_file = PROJECT_ROOT / 'outputs' / 'live' / 'live_state.json'
+    
+    if not state_file.exists():
+        st.warning("Live state file not found. Ensure `src/models/live_inference.py` is running in the background.")
+        return
+        
+    import json
+    try:
+        with open(state_file, 'r') as f:
+            state = json.load(f)
+    except Exception as e:
+        st.error(f"Error loading live state: {e}")
+        return
+        
+    col1, col2, col3 = st.columns(3)
+    
+    status_color = "🟢" if state['status'] == "Normal" else ("🟡" if state['status'] == "WARNING" else "🔴")
+    
+    with col1:
+        st.metric("System Status", f"{status_color} {state['status']}")
+    with col2:
+        st.metric("Current Flux (>2 MeV)", f"{state['current_flux_gt2MeV']:.1f} pfu")
+    with col3:
+        st.metric("Last Updated", state['timestamp'].split('.')[0].replace('T', ' '))
+        
+    st.subheader("🔮 Predictive Horizons")
+    
+    # Display predictions
+    horizons = state['horizons']
+    mean_preds = state['predictions_pfu']
+    p95_preds = state['p95_pfu']
+    
+    cols = st.columns(len(horizons))
+    
+    for i, (hz, mean_v, p95_v) in enumerate(zip(horizons, mean_preds, p95_preds)):
+        with cols[i]:
+            st.markdown(f"**{hz} Forecast**")
+            st.metric("Expected Flux", f"{mean_v:.1f} pfu")
+            st.metric("95% Upper Bound", f"{p95_v:.1f} pfu", delta=f"{p95_v - mean_v:.1f}", delta_color="inverse")
+            if p95_v > 1000:
+                st.error("CRITICAL RISK")
+            elif p95_v > 100:
+                st.warning("WARNING")
+            else:
+                st.success("SAFE")
+
+
+
+
 # =============================================================================
 # Main App
 # =============================================================================
@@ -580,7 +637,7 @@ def main():
         
         page = st.radio(
             "Select Page",
-            ["📊 Data Explorer", "🔮 Predictions", "📈 Performance", "ℹ️ About"],
+            ["📡 Live Operations", "📊 Data Explorer", "🔮 Predictions", "📈 Performance", "ℹ️ About"],
             index=0
         )
         
@@ -592,7 +649,9 @@ def main():
         st.caption(f"CUDA: {'✅ ' + torch.cuda.get_device_name(0) if torch.cuda.is_available() else '❌ CPU'}")
     
     # Route to page
-    if page == "📊 Data Explorer":
+    if page == "📡 Live Operations":
+        page_live_operations()
+    elif page == "📊 Data Explorer":
         page_data_explorer()
     elif page == "🔮 Predictions":
         page_predictions()

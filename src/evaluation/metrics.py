@@ -118,7 +118,7 @@ class ForecastMetrics:
     def heidke_skill_score(
         y_true: np.ndarray,
         y_pred: np.ndarray,
-        threshold: float = 3.0  # log10(1000 pfu) = 3.0
+        threshold: float = None,
     ) -> float:
         """
         Heidke Skill Score for categorical forecast.
@@ -130,10 +130,14 @@ class ForecastMetrics:
         
         where a=hits, b=false alarms, c=misses, d=correct negatives.
         
+        If threshold is None, uses the 75th percentile of y_true as an
+        adaptive threshold. This ensures a meaningful event/non-event
+        split even when extreme events (>1000 pfu) are absent.
+        
         Args:
             y_true: Observed log10 flux.
             y_pred: Predicted log10 flux.
-            threshold: Log10 flux threshold (default: 3.0 = 1000 pfu).
+            threshold: Log10 flux threshold. If None, uses 75th percentile.
         
         Returns:
             HSS value (-1 to 1, 1 is perfect).
@@ -141,6 +145,13 @@ class ForecastMetrics:
         mask = np.isfinite(y_true) & np.isfinite(y_pred)
         y_true = y_true[mask]
         y_pred = y_pred[mask]
+        
+        if len(y_true) < 10:
+            return 0.0
+        
+        # Adaptive threshold: use 75th percentile if not specified
+        if threshold is None:
+            threshold = float(np.percentile(y_true, 75))
         
         obs_exceed = y_true >= threshold
         pred_exceed = y_pred >= threshold

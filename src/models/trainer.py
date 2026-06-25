@@ -16,7 +16,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from torch.cuda.amp import autocast, GradScaler
+from torch.amp import autocast, GradScaler
 from pathlib import Path
 from typing import Optional, Dict, Tuple, List
 
@@ -84,7 +84,7 @@ class ModelTrainer:
         )
         
         # Mixed precision scaler
-        self.scaler = GradScaler(enabled=self.use_amp)
+        self.scaler = GradScaler('cuda', enabled=self.use_amp)
         
         # Checkpointing
         self.checkpoint_dir = Path(train_cfg.get('checkpoint_dir', 'models/checkpoints'))
@@ -121,7 +121,7 @@ class ModelTrainer:
             self.optimizer.zero_grad(set_to_none=True)
             
             # Forward pass with mixed precision
-            with autocast(enabled=self.use_amp):
+            with autocast('cuda', enabled=self.use_amp):
                 predictions = self.model(X)
                 loss = self.criterion(predictions, Y)
             
@@ -165,7 +165,7 @@ class ModelTrainer:
             X = X.to(self.device, non_blocking=True)
             Y = Y.to(self.device, non_blocking=True)
             
-            with autocast(enabled=self.use_amp):
+            with autocast('cuda', enabled=self.use_amp):
                 predictions = self.model(X)
                 loss = self.criterion(predictions, Y)
             
@@ -346,7 +346,7 @@ class ModelTrainer:
         for X, Y in data_loader:
             X = X.to(self.device, non_blocking=True)
             
-            with autocast(enabled=self.use_amp):
+            with autocast('cuda', enabled=self.use_amp):
                 # Standard mean prediction
                 self.model.eval() # ensure non-dropout are eval
                 pred = self.model(X)
@@ -402,7 +402,7 @@ class ModelTrainer:
                 X_shuffled[:, :, feat_idx] = X_shuffled[perm, :, feat_idx]
                 
                 X_shuffled = X_shuffled.to(self.device, non_blocking=True)
-                with autocast(enabled=self.use_amp):
+                with autocast('cuda', enabled=self.use_amp):
                     pred = self.model(X_shuffled)
                 all_preds_shuffled.append(pred.cpu().numpy())
             

@@ -48,9 +48,27 @@ class DataPreprocessor:
         raw_dir = Path(self.config.data.get('raw_dir', 'data/raw'))
         data = {}
         
-        # GOES electron flux
+        # GRASP (ISRO GSAT-19)
+        grasp_dir = raw_dir / 'grasp'
+        has_grasp = False
+        if grasp_dir.exists():
+            logger.info("Loading GRASP data...")
+            grasp_files = sorted(grasp_dir.rglob('*.cdf')) + sorted(grasp_dir.rglob('*.csv')) + sorted(grasp_dir.rglob('*.txt'))
+            if grasp_files:
+                dfs = []
+                for f in grasp_files:
+                    df = self.reader.read_grasp(str(f))
+                    if not df.empty:
+                        dfs.append(df)
+                if dfs:
+                    data['grasp'] = pd.concat(dfs).sort_index()
+                    data['grasp'] = data['grasp'][~data['grasp'].index.duplicated(keep='first')]
+                    logger.info(f"  GRASP: {len(data['grasp'])} records")
+                    has_grasp = True
+                    
+        # GOES electron flux (Skip if we have GRASP data to focus on ISRO satellite)
         goes_dir = raw_dir / 'goes'
-        if goes_dir.exists():
+        if goes_dir.exists() and not has_grasp:
             logger.info("Loading GOES electron flux data...")
             # Recursively find all CDF files
             cdf_files = sorted(goes_dir.rglob('*.cdf'))
@@ -63,8 +81,9 @@ class DataPreprocessor:
                 if dfs:
                     data['goes'] = pd.concat(dfs).sort_index()
                     data['goes'] = data['goes'][~data['goes'].index.duplicated(keep='first')]
-                    logger.info(f"  GOES: {len(data['goes'])} records, "
-                               f"{data['goes'].index[0]} to {data['goes'].index[-1]}")
+                    logger.info(f"  GOES: {len(data['goes'])} records")
+        elif goes_dir.exists() and has_grasp:
+            logger.info("Skipping GOES data because GRASP data was found.")
         
         # Wind SWE
         swe_dir = raw_dir / 'wind_swe'
@@ -107,20 +126,7 @@ class DataPreprocessor:
                 data['omniweb'] = self._load_omniweb_csv(str(csv_files[0]))
                 logger.info(f"  OMNIWeb: {len(data['omniweb'])} records")
         
-        # GRASP
-        grasp_dir = raw_dir / 'grasp'
-        if grasp_dir.exists():
-            logger.info("Loading GRASP data...")
-            grasp_files = sorted(grasp_dir.rglob('*.cdf')) + sorted(grasp_dir.rglob('*.csv')) + sorted(grasp_dir.rglob('*.txt'))
-            if grasp_files:
-                dfs = []
-                for f in grasp_files:
-                    df = self.reader.read_grasp(str(f))
-                    if not df.empty:
-                        dfs.append(df)
-                if dfs:
-                    data['grasp'] = pd.concat(dfs).sort_index()
-                    logger.info(f"  GRASP: {len(data['grasp'])} records")
+        # (GRASP data handled earlier)
         
         return data
     

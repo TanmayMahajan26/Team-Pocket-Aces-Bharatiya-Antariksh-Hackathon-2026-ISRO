@@ -263,7 +263,8 @@ def run_evaluation(config: Config, training_results: dict) -> dict:
             logger.info(
                 f"{model_name:<15} {horizon:<10} "
                 f"{m['PE']:<10.4f} {m['RMSE_log']:<10.4f} "
-                f"{m['Pearson_R']:<10.4f} {m['MAE_log']:<10.4f}"
+                f"{m['Pearson_R']:<10.4f} {m['MAE_log']:<10.4f} "
+                f"HSS={m['HSS']:.4f}"
             )
     
     return all_metrics
@@ -308,8 +309,29 @@ def run_visualization(
     
     # Metrics comparison
     if len(all_metrics) > 1:
-        for metric in ['PE', 'RMSE_log', 'Pearson_R']:
+        for metric in ['PE', 'RMSE_log', 'Pearson_R', 'HSS']:
             viz.plot_metrics_comparison(all_metrics, metric)
+    
+    # Feature importance charts (XAI)
+    for model_name, result in training_results.items():
+        if result.get('importance'):
+            viz.plot_feature_importance(result['importance'], model_name.capitalize())
+    
+    # Uncertainty band plots (MC Dropout)
+    for model_name, result in training_results.items():
+        uncertainties = result.get('test_uncertainties', {})
+        if uncertainties.get('p5') is not None and uncertainties.get('p95') is not None:
+            test_ds = result['test_loader'].dataset
+            timestamps = np.array([test_ds.get_timestamp(i) for i in range(len(test_ds))])
+            viz.plot_uncertainty_bands(
+                timestamps,
+                result['test_targets'],
+                result['test_preds'],
+                uncertainties['p5'],
+                uncertainties['p95'],
+                horizon_labels,
+                model_name.capitalize()
+            )
     
     logger.info("All visualizations generated!")
 
