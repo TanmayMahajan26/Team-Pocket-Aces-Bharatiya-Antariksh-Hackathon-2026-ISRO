@@ -16,11 +16,11 @@ class FeatureExplainer:
         self.model.eval()
         
         # Forward pass
-        preds = self.model(x_tensor) # [1, horizons, quantiles]
+        preds = self.model(x_tensor) # [1, horizons]
         
-        # We care about what is driving the 95th percentile (worst case) for the 30-min horizon (horizon 0)
-        # index: [batch=0, horizon=0, quantile=2 (95th)]
-        target_pred = preds[0, 0, 2]
+        # We care about what is driving the 30-min horizon (horizon 0)
+        # index: [batch=0, horizon=0]
+        target_pred = preds[0, 0]
         
         self.model.zero_grad()
         target_pred.backward()

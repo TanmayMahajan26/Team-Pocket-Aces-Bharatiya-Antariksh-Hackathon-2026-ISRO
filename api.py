@@ -7,6 +7,10 @@ from typing import List, Optional, Dict, Any
 
 from src.data.database import DatabaseManager
 
+import logging
+
+logger = logging.getLogger("api")
+
 app = FastAPI(
     title="ISRO PS14 Space Weather API",
     description="Real-time Geostationary Electron Flux Prediction API",
@@ -45,16 +49,27 @@ async def get_system_status():
 @app.get("/api/live", response_model=ForecastData)
 async def get_live_forecast():
     """Get the latest real-time predictions."""
-    history = db.get_latest_predictions(limit=1)
-    if not history:
-        raise HTTPException(status_code=503, detail="Live state not available. Ensure the daemon is running.")
-    return history[0]
+    try:
+        history = db.get_latest_predictions(limit=1)
+        if not history:
+            logger.warning("No predictions found in database. Is the daemon running?")
+            raise HTTPException(status_code=503, detail="Live state not available. Ensure the daemon is running.")
+        return history[0]
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Internal Server Error while fetching live forecast: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @app.get("/api/history", response_model=List[ForecastData])
 async def get_history(limit: int = Query(100, ge=1, le=1000)):
     """Get historical predictions for plotting drift."""
-    history = db.get_latest_predictions(limit=limit)
-    return history
+    try:
+        history = db.get_latest_predictions(limit=limit)
+        return history
+    except Exception as e:
+        logger.error(f"Internal Server Error while fetching history: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 if __name__ == "__main__":
     import uvicorn
